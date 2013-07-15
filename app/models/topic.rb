@@ -633,6 +633,26 @@ class Topic < ActiveRecord::Base
     category && category.secure
   end
 
+  def self.uncategorized_topics
+    listable_topics
+      .visible
+      .where(category_id: nil)
+      .topic_list_order
+      .limit(SiteSetting.category_featured_topics)
+  end
+
+  def self.totals
+    exec_sql("SELECT SUM(CASE WHEN created_at >= (CURRENT_TIMESTAMP - INTERVAL '1 WEEK') THEN 1 ELSE 0 END) as topics_week,
+                    SUM(CASE WHEN created_at >= (CURRENT_TIMESTAMP - INTERVAL '1 MONTH') THEN 1 ELSE 0 END) as topics_month,
+                    SUM(CASE WHEN created_at >= (CURRENT_TIMESTAMP - INTERVAL '1 YEAR') THEN 1 ELSE 0 END) as topics_year,
+                    COUNT(*) AS topic_count
+             FROM topics
+             WHERE topics.visible
+              AND topics.deleted_at IS NULL
+              AND topics.category_id IS NULL
+              AND topics.archetype <> '#{Archetype.private_message}'").first
+  end
+
   private
 
     def update_category_topic_count_by(num)
